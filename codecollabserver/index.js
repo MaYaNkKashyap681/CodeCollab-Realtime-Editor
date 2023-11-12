@@ -1,77 +1,96 @@
-const express = require('express') //importing the express
-const app = express(); //Creating the app
-const http = require('http'); // importing http from http module 
-const { Server } = require('socket.io'); //getting server from socket.io
+const express = require('express');
+const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
 
-
-// Creating http Server
 const server = http.createServer(app);
-// Making an io server so that the socket can be used
-const io = new Server(server)
+const io = new Server(server);
 
-var idUserMap = {}
+var idUserMap = {};
+var typingMap = {};
+var roomChats = {}; // Add roomChats to store chat messages
 
 function getAllClientsInRoom(roomId) {
-    // Map
     return Array.from(io.sockets.adapter.rooms.get(roomId) || []).map(
         (socketId) => {
             return {
                 socketId,
                 userName: idUserMap[socketId],
+                isTyping: typingMap[roomId] && typingMap[roomId][socketId] || false,
             };
         }
     );
 }
 
-// Getting the Connection
 io.on("connection", (socket) => {
     socket.on('joinroom', ({ roomId, userName }, err) => {
-        //adding user to the map'
-        // console.log(userName)
         idUserMap[socket.id] = userName;
+        typingMap[roomId] = typingMap[roomId] || {};
+        roomChats[roomId] = roomChats[roomId] || []; // Initialize roomChats for the room
 
-        //making user join the room
         socket.join(roomId);
+        const clientsInRoom = getAllClientsInRoom(roomId);
 
-        //getting all clients in the room
-        const clientsInRoom = getAllClientsInRoom(roomId)
-
-        //emmiting the newuser join to every user
-        clientsInRoom.forEach(({ socketId }) => {
+        clientsInRoom.forEach(({ socketId, isTyping }) => {
             io.to(socketId).emit('newuser', {
                 clientsInRoom,
                 userName,
-                socketId: socket.id
-            })
-        })
+                socketId: socket.id,
+                isTyping,
+            });
+        });
 
         socket.on("codechange", ({ roomId, code }) => {
-            const clientsInRoom = getAllClientsInRoom(roomId)
+            const clientsInRoom = getAllClientsInRoom(roomId);
             clientsInRoom.forEach(({ socketId }) => {
                 io.to(socketId).emit('updatingcode', {
                     code,
-                    userName: idUserMap[socket.id]
-                })
-            })
-        })
+                    userName: idUserMap[socket.id],
+                });
+            });
+        });
 
         socket.on("langchange", ({ roomId, language, code }) => {
-            // console.log(code);
-            const clientsInRoom = getAllClientsInRoom(roomId)
+            const clientsInRoom = getAllClientsInRoom(roomId);
             clientsInRoom.forEach(({ socketId }) => {
                 io.to(socketId).emit('changedlanguage', {
                     language,
                     userName: idUserMap[socket.id],
-                    code
-                })
-            })
-        })
-    })
+                    code,
+                });
+            });
+        });
 
-    //disconnecting from the room
+        socket.on("typing", ({ roomId, isTyping }) => {
+            typingMap[roomId][socket.id] = isTyping;
+            const clientsInRoom = getAllClientsInRoom(roomId);
+            clientsInRoom.forEach(({ socketId }) => {
+                io.to(socketId).emit('typingstatus', {
+                    isTyping,
+                    userName: idUserMap[socket.id],
+                });
+            });
+        });
+
+        // Emit the existing chat messages when a user joins
+        io.to(socket.id).emit('chats', {
+            chatArray: roomChats[roomId],
+        });
+    });
+
+    socket.on('newchat', ({ roomId, message, userName }) => {
+        roomChats[roomId].push({
+            message,
+            userName,
+        });
+        getAllClientsInRoom(roomId).forEach(({ socketId }) => {
+            io.to(socketId).emit('chats', {
+                chatArray: roomChats[roomId],
+            });
+        });
+    });
+
     socket.on('disconnecting', () => {
-        //to get all the rooms 
-        // console.log(socket.rooms)
         const rooms = [...socket.rooms];
         rooms.forEach((roomId) => {
             socket.in(roomId).emit("leftroom", {
@@ -84,8 +103,7 @@ io.on("connection", (socket) => {
     });
 });
 
-//Starting the Server
-const PORT = 3000
+const PORT = 3000;
 server.listen(PORT, () => {
-    console.log(`Listening on port ${PORT}`)
-})
+    console.log(`Listening on port ${PORT}`);
+});

@@ -7,5 +7,5 @@ export const initSocket = async () => {
         timeout: 10000,
         transports: ['websocket'],
     };
-    return io('http://code-collab-realtime-editor-pbs5.vercel.app', options);
+    return io('http://localhost:3000', options);
 };

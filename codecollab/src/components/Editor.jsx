@@ -3,7 +3,8 @@ import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript'
 import { cpp } from '@codemirror/lang-cpp'
 import { okaidia, aura, dracula, eclipse, solarizedDark, sublime, tokyoNight, vscodeDark, gruvboxDark } from '@uiw/codemirror-themes-all'
-
+import toast from 'react-hot-toast';
+import Avatar from 'react-avatar';
 
 const themeList = [
   {
@@ -58,13 +59,13 @@ const fontSizeList = [
 
 const Editor = ({ socketRef, roomId, _userName }) => {
 
-
-  const [lang, setLang] = useState("javascript")
-  const [code, setCode] = useState(`console.log('hello world!');`)
-  const [_theme, setTheme] = useState(okaidia)
-  const [themeName, setThemeName] = useState('okaidia')
-  const [fontS, setFontS] = useState(14)
-
+  const [lang, setLang] = useState('javascript');
+  const [code, setCode] = useState(`console.log('hello world!');`);
+  const [_theme, setTheme] = useState(okaidia);
+  const [fontS, setFontS] = useState(14);
+  const [isTyping, setIsTyping] = useState(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatArray, setChatArray] = useState([]);
 
   const handleLangChange = (e) => {
     setLang(e.target.value)
@@ -107,6 +108,39 @@ const Editor = ({ socketRef, roomId, _userName }) => {
     }
   }
 
+
+  const handleTyping = () => {
+    setIsTyping(_userName);
+    socketRef.current.emit('typing', {
+      roomId,
+      isTyping: true,
+    });
+
+    // Clear typing indicator after 2 seconds
+    setTimeout(() => {
+      setIsTyping(null);
+      socketRef.current.emit('typing', {
+        roomId,
+        isTyping: false,
+      });
+    }, 2000);
+  };
+
+  const handleChatChange = (e) => {
+    setChatMessage(e.target.value);
+  };
+
+  const handleSendChat = () => {
+    if (chatMessage.trim() !== '') {
+      socketRef.current.emit('newchat', {
+        roomId,
+        message: chatMessage,
+        userName: _userName,
+      });
+      setChatMessage('');
+    }
+  };
+
   useEffect(() => {
     function changer() {
       if (socketRef.current) {
@@ -123,6 +157,20 @@ const Editor = ({ socketRef, roomId, _userName }) => {
             setCode(code)
           }
         })
+
+        socketRef.current.on('typingstatus', ({ isTyping, userName }) => {
+          if (isTyping) {
+            setIsTyping(userName);
+          } else {
+            setIsTyping(null);
+          }
+        });
+
+        socketRef.current.on('chats', ({ chatArray }) => {
+
+          const newArr = chatArray.reverse();
+          setChatArray(newArr);
+        });
       }
     }
     changer();
@@ -131,11 +179,25 @@ const Editor = ({ socketRef, roomId, _userName }) => {
     };
   }, [socketRef.current])
 
+  useEffect(() => {
+    if (chatArray.length) {
+      setTimeout(() => {
+        const newCh = chatArray;
+        newCh.unshift();
+        
+        setChatArray(newCh);
+      }, 1000)
+    }
+  }, [])
+
   //To make Editor Run
 
   return (
 
     <>
+      <div className='absolute bottom-4 right-4 bg-white bg-opacity-80 p-2 rounded shadow'>
+        {isTyping && <span>{isTyping} is typing...</span>}
+      </div>
       <div className='flex justify-end gap-[1rem] my-[1rem]'>
         <div>
           <select id="language" onChange={handleLangChange} value={lang} className={`p-2 bg-black bg-opacity-75 text-white cursor-pointer`}>
@@ -168,11 +230,35 @@ const Editor = ({ socketRef, roomId, _userName }) => {
           fontSize: `${fontS}px`
         }}
         value={code}
-        height="70vh"
+        height="66vh"
         theme={_theme}
         extensions={lang === 'cpp' ? [cpp()] : [javascript({ jsx: true })]}
         onChange={handleCodeChange}
+        onKeyUp={handleTyping}
       />
+
+      <div className='flex flex-col items-end gap-2'>
+        <div className='flex gap-2'>
+          <input
+            type='text'
+            value={chatMessage}
+            onChange={handleChatChange}
+            placeholder='Type your message...'
+            className='p-1 border border-gray-300 rounded'
+          />
+          <button onClick={handleSendChat} className='bg-blue-500 text-white p-1 rounded'>
+            Send
+          </button>
+        </div>
+        <div className='flex flex-col gap-2 h-[4rem] overflow-scroll'>
+          {chatArray.map((chat, index) => (
+            <div key={index} className='flex gap-2'>
+              <Avatar name={chat.userName} size='20' round />
+              <span>{`${chat.userName}: ${chat.message}`}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   )
 }
