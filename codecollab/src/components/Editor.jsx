@@ -137,6 +137,7 @@ const Editor = ({ socketRef, roomId, _userName }) => {
         message: chatMessage,
         userName: _userName,
       });
+      toast.success('New Message In Chat')
       setChatMessage('');
     }
   };
