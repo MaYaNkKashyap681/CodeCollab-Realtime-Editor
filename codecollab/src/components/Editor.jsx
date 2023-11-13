@@ -5,6 +5,7 @@ import { cpp } from '@codemirror/lang-cpp'
 import { okaidia, aura, dracula, eclipse, solarizedDark, sublime, tokyoNight, vscodeDark, gruvboxDark } from '@uiw/codemirror-themes-all'
 import toast from 'react-hot-toast';
 import Avatar from 'react-avatar';
+import { saveAs } from 'file-saver';
 
 const themeList = [
   {
@@ -142,6 +143,11 @@ const Editor = ({ socketRef, roomId, _userName }) => {
     }
   };
 
+  const handleDownload = () => {
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    saveAs(blob, `${roomId}-code.txt`);
+  };
+
   useEffect(() => {
     function changer() {
       if (socketRef.current) {
@@ -185,7 +191,7 @@ const Editor = ({ socketRef, roomId, _userName }) => {
       setTimeout(() => {
         const newCh = chatArray;
         newCh.unshift();
-        
+
         setChatArray(newCh);
       }, 1000)
     }
@@ -223,6 +229,11 @@ const Editor = ({ socketRef, roomId, _userName }) => {
               ))
             }
           </select>
+        </div>
+        <div>
+          <button onClick={handleDownload} className='bg-green-500 text-white p-1 rounded'>
+            Download Code
+          </button>
         </div>
       </div>
       <CodeMirror
