@@ -4,9 +4,13 @@ const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const { CodeModel } = require('./codemodel');
+const cors = require('cors');
+
 
 const server = http.createServer(app);
 const io = new Server(server);
+
+app.use(cors());
 
 mongoose.connect('mongodb+srv://mayankkashyap705487:root@cluster0.huczc4n.mongodb.net/?retryWrites=true&w=majority/socketChat', {
     useNewUrlParser: true,
