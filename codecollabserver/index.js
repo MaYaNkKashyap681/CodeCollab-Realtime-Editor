@@ -12,10 +12,7 @@ const io = new Server(server);
 
 app.use(cors());
 
-mongoose.connect('mongodb+srv://mayankkashyap705487:root@cluster0.huczc4n.mongodb.net/?retryWrites=true&w=majority/socketChat', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => {
+mongoose.connect('mongodb+srv://mayankkashyap705487:root@cluster0.huczc4n.mongodb.net/?retryWrites=true&w=majority/socketChat').then(() => {
     console.log('Database Connected');
 }).catch((err) => {
     console.log('There is some error', err);
